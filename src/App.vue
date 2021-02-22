@@ -1,28 +1,40 @@
 <template>
-  <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
-  </div>
+  <v-app>
+    <v-app-bar justify-center app color="teal" class="justify-center" dark>
+      <v-container>
+        <v-row no-gutters>
+          <v-col cols="12" sm="4"> </v-col>
+          <v-col cols="12" sm="4">
+            <h2>
+              MY INSTRUMENT 🎹
+            </h2>
+          </v-col>
+        </v-row>
+      </v-container>
+    </v-app-bar>
+
+    <v-main>
+      <Instrument />
+    </v-main>
+  </v-app>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import Instrument from "./components/Instrument";
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
-    HelloWorld
-  }
-}
+    Instrument,
+  },
+};
 </script>
-
 <style>
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+  margin-top: 150px;
 }
 </style>
