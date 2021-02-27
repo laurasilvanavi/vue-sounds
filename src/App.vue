@@ -6,7 +6,7 @@
           <v-col cols="12" sm="4"> </v-col>
           <v-col cols="12" sm="4">
             <h2>
-              MY INSTRUMENT 🎹
+              CATIANO 😻
             </h2>
           </v-col>
         </v-row>
