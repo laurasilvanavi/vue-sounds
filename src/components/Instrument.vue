@@ -2,194 +2,94 @@
   <div>
     <div>
       <v-btn
-        v-for="note of notes"
-        @click="playNote(note)"
-        v-bind:key="note"
-        small
+        @click="playOriginalMelody()"
+        large
         tile
         text
         outlined
         color="teal"
       >
-        ♪ {{ note }}
-      </v-btn>
-    </div>
-    <div>
-      <v-btn @click="toggleMelody()" small tile text outlined color="teal">
-        🎹 Melody
-      </v-btn>
-      <v-btn @click="toggleBass()" small tile text outlined color="teal">
-        🎸 Bass
-      </v-btn>
-      <v-btn @click="toggleNoise()" small tile text outlined color="teal">
-        💨 Noise
+        ⭐️ Original song
       </v-btn>
       <v-btn
-        @click="playRandomMarioSample()"
-        small
+        @click="playContinuationByAI()"
+        large
         tile
         text
         outlined
         color="teal"
       >
-        🍄 Mario
+        🌟 AI continuation
       </v-btn>
-      <v-btn @click="speedUpBpm()" small tile text outlined color="teal">
-        👟 Speed up
-      </v-btn>
-      <v-btn @click="stopInstruments()" small tile text outlined color="teal">
-        ✋ Stop
+      <v-btn @click="playNewSongWithAI()" large tile text outlined color="teal">
+        👶 AI new song
       </v-btn>
     </div>
   </div>
 </template>
 
 <script>
-import * as Tone from "tone";
+import * as Magenta from "@magenta/music";
 import {
-  DOGIANO_GAMMA_NOTES,
-  MELODY_CHORDS,
-  BASS_CHORDS,
-  MARIO_SAMPLES,
-} from "../constants/notes";
-import DogSample from "../assets/dog-sample.mp3";
+  JUMP_SONG,
+  RNN_CHECKPOINT,
+  VAE_CHECKPOINT,
+} from "../constants/notes.js";
 
 export default {
   name: "Instrument",
   data() {
     return {
-      polySynthSquare: null,
-      polySynthSaw: null,
-      notes: DOGIANO_GAMMA_NOTES,
-      volume: null,
-      sampler: null,
-      mediumVolume: null,
-      melodyPart: null,
-      bassPart: null,
-      noise: null,
-      isTransportStarted: null,
+      player: null,
+      musicRNN: null,
+      musicVAE: null,
+      steps: 60,
+      temperature: 1.5,
+      stepsPerQuarter: 4,
     };
   },
   created() {
-    this.mediumVolume = new Tone.Volume(-15);
-    this.initDogianoInstrument();
+    this.player = new Magenta.Player();
+
+    this.musicRNN = new Magenta.MusicRNN(RNN_CHECKPOINT);
+    this.musicRNN.initialize();
+
+    this.musicVAE = new Magenta.MusicVAE(VAE_CHECKPOINT);
+    this.musicVAE.initialize();
   },
   methods: {
-    initDogianoInstrument() {
-      this.sampler = new Tone.Sampler({
-        E4: DogSample,
-      }).chain(this.mediumVolume, Tone.Destination);
-
-      this.polySynthSquare = new Tone.PolySynth(Tone.Synth, {
-        oscillator: {
-          type: "square",
-        },
-      }).chain(new Tone.Volume(-25), Tone.Destination);
-    },
-
-    playNote(note) {
-      this.polySynthSquare.triggerAttackRelease(note, "4n");
-      this.sampler.triggerAttack(note);
-    },
-
-    toggleMelody() {
-      if (this.melodyPart) {
-        this.melodyPart.mute = !this.melodyPart.mute;
+    playOriginalMelody() {
+      if (this.player.isPlaying()) {
+        this.player.stop();
       } else {
-        this.polySynthSaw = new Tone.PolySynth(Tone.Synth, {
-          oscillator: {
-            type: "fatsawtooth",
-          },
-          envelope: {
-            attack: 0.01,
-            release: 0.4,
-          },
-        }).chain(this.mediumVolume, Tone.Destination);
-
-        this.melodyPart = new Tone.Part((time, chord) => {
-          this.sampler.triggerAttackRelease(chord.note, chord.duration, time);
-          this.polySynthSaw.triggerAttackRelease(
-            chord.note,
-            chord.duration,
-            time
-          );
-        }, MELODY_CHORDS);
-
-        this.playPart(this.melodyPart);
+        this.player.start(JUMP_SONG);
       }
     },
 
-    playPart(part) {
-      if (!this.isTransportStarted) {
-        Tone.Transport.toggle();
-        this.isTransportStarted = true;
-        Tone.Transport.bpm.value = 132;
-      }
-
-      part.start(0);
-      part.loop = true;
-      part.loopEnd = "4m";
-    },
-
-    toggleBass() {
-      if (this.bassPart) {
-        this.bassPart.mute = !this.bassPart.mute;
+    playContinuationByAI() {
+      if (this.player.isPlaying()) {
+        this.player.stop();
       } else {
-        this.bassPart = new Tone.Part((time, chord) => {
-          this.polySynthSquare.triggerAttackRelease(
-            chord.note,
-            chord.duration,
-            time
-          );
-        }, BASS_CHORDS);
+        const quantizedNotes = Magenta.sequences.quantizeNoteSequence(
+          JUMP_SONG,
+          this.stepsPerQuarter
+        );
 
-        this.playPart(this.bassPart);
+        this.musicRNN
+          .continueSequence(quantizedNotes, this.steps, this.temperature)
+          .then((sample) => this.player.start(sample))
+          .catch((err) => console.log(err));
       }
     },
 
-    toggleNoise() {
-      if (this.noise) {
-        this.noise.mute = !this.noise.mute;
+    playNewSongWithAI() {
+      if (this.player.isPlaying()) {
+        this.player.stop();
+        return;
       } else {
-        this.noise = new Tone.Noise("pink").start();
-        const filter = new Tone.AutoFilter({
-          frequency: "8m",
-        }).chain(new Tone.Volume(-20), Tone.Destination);
-
-        this.noise.connect(filter);
-        filter.start();
-      }
-    },
-
-    playRandomMarioSample() {
-      this.playSample(
-        MARIO_SAMPLES[Math.floor(Math.random() * MARIO_SAMPLES.length)]
-      );
-    },
-
-    playSample(sampleName) {
-      new Tone.Player({
-        url: sampleName,
-        autostart: true,
-      }).chain(this.mediumVolume, Tone.Destination);
-    },
-
-    speedUpBpm() {
-      Tone.Transport.bpm.value += 20;
-    },
-
-    stopInstruments() {
-      this.playSample(MARIO_SAMPLES[5]);
-
-      this.stopInstrument(this.melodyPart);
-      this.stopInstrument(this.bassPart);
-      this.stopInstrument(this.noise);
-    },
-
-    stopInstrument(instrument) {
-      if (instrument) {
-        instrument.mute = true;
-        instrument.stop();
+        this.musicVAE
+          .sample(1, this.temperature)
+          .then((samples) => this.player.start(samples[0]));
       }
     },
   },

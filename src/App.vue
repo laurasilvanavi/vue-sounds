@@ -6,7 +6,7 @@
           <v-col cols="12" sm="4"> </v-col>
           <v-col cols="12" sm="4">
             <h2>
-              DOGIANO 🐶
+              AI 🤖
             </h2>
           </v-col>
         </v-row>
